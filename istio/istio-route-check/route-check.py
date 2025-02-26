@@ -8,15 +8,19 @@ import fnmatch
 from urllib.parse import urlparse
 
 
+# As order matters, currently the latest match is overwriting the previous one.
+# For rules with e.g. identical URI match or Authority match but different header match this results
+# The desired behavior is, that if rules are identical except of headers, two rules are printed.Mentiond the only differenc is the header
 
-vshttp = {   'hostname_match': None,
-                'rulename': None,
-                'http': []
-            }
+vshttp = {'hostname_match': None,
+          'rulename': None,
+          'http': []
+          }
+
 
 def get_virtual_services(context):
 
-    command = "kubectl get vs -A -ojson"
+    command = "kubectl get virtualservices -A -ojson"
 
     if context == None:
         vsraw = subprocess.run([command], shell=True, capture_output=True)
@@ -29,6 +33,7 @@ def get_virtual_services(context):
 
     return vs
 
+
 def get_target(url):
 
     if not urlparse(url).scheme:
@@ -36,39 +41,41 @@ def get_target(url):
 
     return urlparse(url)
 
+
 def get_empty_vsmatch():
-    vsmatch = { 'match': {
-                'uri': {
-                    'type': None,
-                    'expression': None,
-                },
-                'authority': {
-                    'type': None,
-                    'expression': None
-                },
-            },
-            'rewrite': {
-                'enabled': None,
-                'authority': None,
-                'uri': None
-            },
-            'redirect': {
-                'enabled': None,
-                'authority': None,
-                'uri': None
-            },
-            'route': {
-                'enabled': None,
-                'host': None,
-                'port': None
-            },
-            'defaultroute': {
-                'enabled': None,
-                'host': None,
-                'port': None
-            },
-            }
+    vsmatch = {'match': {
+        'uri': {
+            'type': None,
+            'expression': None,
+        },
+        'authority': {
+            'type': None,
+            'expression': None
+        },
+    },
+        'rewrite': {
+        'enabled': None,
+        'authority': None,
+        'uri': None
+    },
+        'redirect': {
+        'enabled': None,
+        'authority': None,
+        'uri': None
+    },
+        'route': {
+        'enabled': None,
+        'host': None,
+        'port': None
+    },
+        'defaultroute': {
+        'enabled': None,
+        'host': None,
+        'port': None
+    },
+    }
     return vsmatch
+
 
 def search_match(vs, t):
 
@@ -88,21 +95,24 @@ def search_match(vs, t):
                         for attribute in items["spec"]:
                             if attribute == "http":
                                 for http in items["spec"]["http"]:
-                                    vshttp = get_http_match(vshttp, http, path, t.hostname, str(items["metadata"]["name"]))
-                                if len(vshttp["http"]) >0:
+                                    vshttp = get_http_match(
+                                        vshttp, http, path, t.hostname, str(items["metadata"]["name"]))
+                                if len(vshttp["http"]) > 0:
                                     for existingvsmatch in vshttp["http"]:
                                         vsmatch = existingvsmatch
                                 else:
                                     vsmatch = get_empty_vsmatch()
-                                if  ( vsmatch["rewrite"]["enabled"] != True ) and ( vsmatch["redirect"]["enabled"] != True ) and ( vsmatch["route"]["enabled"] != True ):
+                                if (vsmatch["rewrite"]["enabled"] != True) and (vsmatch["redirect"]["enabled"] != True) and (vsmatch["route"]["enabled"] != True):
                                     if "route" in http:
                                         for route in http["route"]:
-                                            vshttp["rulename"] = str(items["metadata"]["name"])
+                                            vshttp["rulename"] = str(
+                                                items["metadata"]["name"])
                                             vsmatch["defaultroute"]["enabled"] = True
                                             if "host" in route["destination"]:
                                                 vsmatch["defaultroute"]["host"] = route["destination"]["host"]
                                             if "port" in route["destination"]:
-                                                vsmatch["defaultroute"]["port"]  = str(route["destination"]["port"]["number"])
+                                                vsmatch["defaultroute"]["port"] = str(
+                                                    route["destination"]["port"]["number"])
 #                                             if len(vshttp["http"]) > 0:
 #
 #                                                 for http in vshttp["http"]:
@@ -116,6 +126,7 @@ def search_match(vs, t):
 
     return vshttp
 
+
 def hostname_in_vs(vshost, searchhost):
 
     if vshost.startswith("*"):
@@ -126,9 +137,10 @@ def hostname_in_vs(vshost, searchhost):
     else:
         return False
 
+
 def get_http_match(vshttp, http, path, hostname, rulename):
 
-    if len(vshttp["http"]) >0:
+    if len(vshttp["http"]) > 0:
         for existingvsmatch in vshttp["http"]:
             vsmatch = existingvsmatch
     else:
@@ -164,7 +176,8 @@ def get_http_match(vshttp, http, path, hostname, rulename):
                                         vsmatch["route"]["host"] = route["destination"]["host"]
                                         vsmatch["route"]["enabled"] = True
                                     if "port" in route["destination"]:
-                                        vsmatch["route"]["port"] = str(route["destination"]["port"]["number"])
+                                        vsmatch["route"]["port"] = str(
+                                            route["destination"]["port"]["number"])
                                         vsmatch["route"]["enabled"] = True
 
                             if "rewrite" in http:
@@ -215,7 +228,8 @@ def get_http_match(vshttp, http, path, hostname, rulename):
                                             vsmatch["route"]["host"] = route["destination"]["host"]
                                             vsmatch["route"]["enabled"] = True
                                         if "port" in route["destination"]:
-                                            vsmatch["route"]["port"] = str(route["destination"]["port"]["number"])
+                                            vsmatch["route"]["port"] = str(
+                                                route["destination"]["port"]["number"])
                                             vsmatch["route"]["enabled"] = True
 
                                 if "rewrite" in http:
@@ -228,23 +242,77 @@ def get_http_match(vshttp, http, path, hostname, rulename):
                                             vsmatch["rewrite"]["enabled"] = True
 
                                 if "redirect" in http:
-                                    for redirect in http["redirect"]:
-                                        if "uri" in redirect:
-                                            vsmatch["redirect"]["uri"] = redirect["uri"]
-                                            vsmatch["redirect"]["enabled"] = True
-                                        if "authority" in redirect:
-                                            vsmatch["redirect"]["authority"] = redirect["authority"]
-                                            vsmatch["redirect"]["enabled"] = True
+                                    if "uri" in http["redirect"]:
+                                        vsmatch["redirect"]["uri"] = http["redirect"]["uri"]
+                                        vsmatch["redirect"]["enabled"] = True
+                                    if "authority" in http["redirect"]:
+                                        vsmatch["redirect"]["authority"] = http["redirect"]["authority"]
+                                        vsmatch["redirect"]["enabled"] = True
 
                                     vshttp["http"].append(vsmatch)
 
+                if match != None:
+                    if "headers" in match:
+                        for k, v in match["headers"].items():
+                            for matchtype, value in v.items():
+                                expression = "Header \'" + k + "\' matches " + matchtype + " \'" + value + "\'"
+                                print(expression)
+                            match matchtype:
+                                case "prefix":
+                                    if (hostname.startswith(v)) and (v != vsmatch["match"]["headers"]["expression"]):
+                                        vsmatch["match"]["headers"]["type"] = "prefix"
+                                        foundmatch = True
+                                case "exact":
+                                    if (v == hostname) and (v != vsmatch["match"]["authority"]["expression"]):
+                                        vsmatch["match"]["headers"]["type"] = "exact"
+                                        foundmatch = True
+                                case "regex":
+                                    rematch = re.fullmatch(v, hostname)
+                                    if (rematch) and (v != vsmatch["match"]["headers"]["expression"]):
+                                        vsmatch["match"]["headers"]["type"] = "regex"
+                                        foundmatch = True
+
+#                             if foundmatch:
+#                                 vshttp["rulename"] = rulename
+#                                 vsmatch["match"]["authority"]["expression"] = v
+#
+#                                 if "route" in http:
+#                                     for route in http["route"]:
+#                                         if "host" in route["destination"]:
+#                                             vsmatch["route"]["host"] = route["destination"]["host"]
+#                                             vsmatch["route"]["enabled"] = True
+#                                         if "port" in route["destination"]:
+#                                             vsmatch["route"]["port"] = str(route["destination"]["port"]["number"])
+#                                             vsmatch["route"]["enabled"] = True
+#
+#                                 if "rewrite" in http:
+#                                     for rewrite in http["rewrite"]:
+#                                         if "uri" in rewrite:
+#                                             vsmatch["rewrite"]["uri"] = rewrite["uri"]
+#                                             vsmatch["rewrite"]["enabled"] = True
+#                                         if "authority" in rewrite:
+#                                             vsmatch["rewrite"]["authority"] = rewrite["authority"]
+#                                             vsmatch["rewrite"]["enabled"] = True
+#
+#                                 if "redirect" in http:
+#                                     for redirect in http["redirect"]:
+#                                         if "uri" in redirect:
+#                                             vsmatch["redirect"]["uri"] = redirect["uri"]
+#                                             vsmatch["redirect"]["enabled"] = True
+#                                         if "authority" in redirect:
+#                                             vsmatch["redirect"]["authority"] = redirect["authority"]
+#                                             vsmatch["redirect"]["enabled"] = True
+#
+#                                     vshttp["http"].append(vsmatch)
+
     return vshttp
+
 
 def print_results(results, t):
 
     if results["hostname_match"]:
         print("--- Request Actions ---")
-        for h in  results["http"]:
+        for h in results["http"]:
             for kind in h:
                 match kind:
                     case "rewrite":
@@ -275,7 +343,7 @@ def print_results(results, t):
                                 target = targetservice+":"+targetport
                             print("Sending request to: " + target)
                     case "defaultroute":
-                        #print(h["defaultroute"])
+                        # print(h["defaultroute"])
                         if h[kind]["enabled"]:
                             if h[kind]["host"] != None:
                                 host = h[kind]["host"]
@@ -285,24 +353,27 @@ def print_results(results, t):
                                 defaultroute = host+":"+port
                             print("Using default route: " + defaultroute)
 
-
         # Printing some more rule details
         print("")
         print("--- Rule Details ---")
-        print("Matching Hostname in Rule is: \"" + results["hostname_match"] +"\"")
-        print("Defined in VirtualService Rule: \"" + vshttp["rulename"] +"\"")
+        print("Matching Hostname in Rule is: \"" +
+              results["hostname_match"] + "\"")
+        print("Defined in VirtualService Rule: \"" + vshttp["rulename"] + "\"")
 
         # Print Kind of match
         for h in results["http"]:
             for kind in h["match"]:
                 if h["match"][kind]["type"] != None:
-                    print("Match is based on: \"" + kind +"\"")
-                    print("Match type is: \"" + h["match"][kind]["type"] +"\"")
-                    print("Match expressions is: \"" + str(h["match"][kind]["expression"]) +"\"")
-
+                    print("Match is based on: \"" + kind + "\"")
+                    print("Match type is: \"" +
+                          h["match"][kind]["type"] + "\"")
+                    print("Match expressions is: \"" +
+                          str(h["match"][kind]["expression"]) + "\"")
 
     else:
-        print("No matching rule found for " + args.url + " in context " + args.context)
+        print("No matching rule found for " + str(args.url) +
+              " in context " + str(args.context))
+
 
 def main(url, context):
 
@@ -314,10 +385,14 @@ def main(url, context):
 
     print_results(results, target)
 
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Find istio route destination')
-    parser.add_argument('--url', type=str, required=True, help='URL for which to find destination')
-    parser.add_argument('--context', type=str, required=False, help='K8S cluster context of istio-rules (default: current context')
+    parser = argparse.ArgumentParser(
+        description='Find istio route destination')
+    parser.add_argument('--url', type=str, required=True,
+                        help='URL for which to find destination')
+    parser.add_argument('--context', type=str, required=False,
+                        help='K8S cluster context of istio-rules (default: current context')
     args = parser.parse_args()
 
     main(args.url, args.context)
