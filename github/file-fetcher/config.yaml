@@ -1,0 +1,6 @@
+search:
+  query: "dockerfile in:path org:daniel-gut"
+  per_page: 100
+data:
+  output_dir: "./dockerfiles-download/"
+
