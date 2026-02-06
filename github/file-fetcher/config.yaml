@@ -1,6 +1,7 @@
 search:
-  query: "dockerfile in:path org:daniel-gut"
+  query: "gygservice.yml in:path org:daniel-gut"
   per_page: 100
 data:
-  output_dir: "./dockerfiles-download/"
+  output_dir: "./fetched-files/test-files/"
+  # index_file: "gygservice-2025-24-11-index.json"
 

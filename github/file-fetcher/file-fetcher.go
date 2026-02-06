@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"encoding/json"
 	"github.com/google/go-github/v70/github"
 	"gopkg.in/yaml.v3"
 )
@@ -56,6 +57,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("code search failed: %v", err)
 	}
+	if len(searchResults) == 0 {
+		fmt.Println("No files found, exiting.")
+		return
+	}
 
 	// Download Files
 	fmt.Println("Downloading files...")
@@ -63,7 +68,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("file download failed: %v", err)
 	}
-	// 4. download files
 }
 
 func loadConfig() (*Config, error) {
@@ -133,6 +137,22 @@ func searchCode(c *github.Client, conf *Config) ([]File, error) {
 		}
 		opts.Page = r.NextPage
 	}
+
+	// Write the files to index file as json
+	metadataFile, err := json.MarshalIndent(files, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	if conf.Data.IndexFile == "" {
+		conf.Data.IndexFile = "index.json"
+	}
+	metadateFilePath := conf.Data.OutputDir + conf.Data.IndexFile
+	err = os.WriteFile(metadateFilePath, metadataFile, 0677)
+	if err != nil {
+		return nil, err
+	}
+	fmt.Printf("Wrote index file to %s\n", metadateFilePath)
+
 	return files, nil
 
 }
